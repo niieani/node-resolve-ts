@@ -1,5 +1,5 @@
 {
-  "name": "node-resolve-ts-tests",
+  "name": "node-ts-resolver-tests",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -7,12 +7,11 @@
     "test": "node --test '*.test.js'"
   },
   "dependencies": {
-    "node-resolve-ts": "file:..",
+    "node-ts-resolver": "file:..",
     "test-package": "file:./test-package"
   },
   "devDependencies": {
-    "@types/node": "^22.7.5",
-    "amaro": "^1.1.0"
+    "@types/node": "^24.0.3"
   },
   "engines": {
     "node": ">=22"

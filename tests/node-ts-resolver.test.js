@@ -5,14 +5,14 @@ import { promisify } from "node:util";
 
 const exec = promisify(execCb);
 
-describe("node-resolve-ts", () => {
+describe("node-ts-resolver", () => {
   test("Node raises ERR_MODULE_NOT_FOUND without this resolver", async () => {
     await assert.rejects(
       () =>
         exec("node --experimental-strip-types main.ts", {
           encoding: "utf8",
         }),
-      /ERR_MODULE_NOT_FOUND/
+      /ERR_MODULE_NOT_FOUND/,
     );
   });
 
@@ -20,12 +20,12 @@ describe("node-resolve-ts", () => {
     const commands = [
       {
         command:
-          "node --experimental-strip-types --import node-resolve-ts/register main.ts",
+          "node --experimental-strip-types --import node-ts-resolver/strip main.ts",
         stdout: /^main\.ts: 3$/,
       },
       {
         command:
-          "node --experimental-strip-types --import node-resolve-ts/register mts/main.mts",
+          "node --experimental-strip-types --import node-ts-resolver/strip mts/main.mts",
         stdout: /^main\.mts: 3$/,
       },
       {
@@ -46,16 +46,11 @@ describe("node-resolve-ts", () => {
     }
   });
 
-  describe("can prefer JS over TS or visa-versa", () => {
+  describe("prefers JS over TS", () => {
     const commands = [
       {
         command:
-          "node --experimental-strip-types --import node-resolve-ts/register-prefer-ts js-preference/main.ts",
-        stdout: /^from TS$/,
-      },
-      {
-        command:
-          "node --experimental-strip-types --import node-resolve-ts/register-prefer-js js-preference/main.ts",
+          "node --experimental-strip-types --import node-ts-resolver/strip js-preference/main.ts",
         stdout: /^from JS$/,
       },
     ];
@@ -75,7 +70,7 @@ describe("node-resolve-ts", () => {
   describe("handles non-relative imports with TypeScript resolution", () => {
     test("resolves package imports with .js to .ts", async () => {
       const { stdout } = await exec(
-        'node --experimental-strip-types --import amaro/strip --import node-resolve-ts/register test-non-relative.ts',
+        "node --experimental-strip-types --import node-ts-resolver/strip test-non-relative.ts",
         {
           encoding: "utf8",
           timeout: 1000,

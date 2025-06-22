@@ -1,10 +1,10 @@
 {
-  "name": "node-resolve-ts",
-  "version": "1.0.2",
-  "description": "NodeJS hook to resolve `.ts` files when a `.js` file is imported so that --experimental-strip-types works",
+  "name": "node-ts-resolver",
+  "version": "1.0.0",
+  "description": "Node resolver hook allowing `.ts` files to be found when imported with `.js` extensions",
   "type": "module",
   "scripts": {
-    "test": "cd tests; npm run test",
+    "test": "cd tests; npm ci && npm run test",
     "prepublishOnly": "npm test"
   },
   "keywords": [
@@ -12,20 +12,27 @@
     "typescript",
     "ts",
     "experimental-strip-types",
+    "experimental-transform-types",
     "resolve"
   ],
-  "author": "Franklin Ross",
-  "license": "ISC",
+  "author": "Bazyli Brzoska <npm@invent.life>",
+  "license": "MIT",
   "files": [
     "*.js"
   ],
+  "engines": {
+    "node": ">=22.6.0"
+  },
   "exports": {
-    "./register": "./register-prefer-ts.js",
-    "./register-prefer-js": "./register-prefer-js.js",
-    "./register-prefer-ts": "./register-prefer-ts.js"
+    ".": "./register-strip.js",
+    "./strip": "./register-strip.js",
+    "./transform": "./register-transform.js"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/franklin-ross/node-resolve-ts.git"
+    "url": "git+https://github.com/niieani/node-resolve-ts.git"
+  },
+  "dependencies": {
+    "amaro": "^1.1.0"
   }
 }

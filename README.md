@@ -1,115 +1,144 @@
-# Node Resolve TypeScript
+# Node TypeScript Resolver
 
-## Overview
+This package enables Node.js to resolve TypeScript files the same way TypeScript does - allowing `.ts` files to be found when imported with `.js` extensions.
+It works in conjunction with modern Node.js versions that support loading TypeScript files natively:
+- **Node 22.6.0+**: `--experimental-strip-types`
+- **Node 22.7.0+**: `--experimental-transform-types`
+- **Node 23.6.0+**: Type stripping enabled by default (no flag needed)
 
-Actually use `node --experimental-strip-types` to run regular Typescript code by allowing Node to resolve `.ts` files when it finds a `.js` import extension.
+It fully replaces the need for tools such as `ts-node` or `tsx`, and makes `node` behave more like `bun` when it comes to loading TypeScript files.
 
-ESM (and therefore Node running ESM) needs the full file extension to resolve relative imports to source files. Since one of Typescript's fundamental philosophies is to [never transform an existing valid JS construct into something else](https://github.com/microsoft/TypeScript/issues/40878#issuecomment-702353715), it also needs the full extension _of the output file_ when using the strict module resolution algorithm, meaning Typescript expects `.js` extensions in imports even when referencing a relative `.ts` source file. Since Node's type striping does nothing to help Node resolve a `.ts` file for a `.js` import specifier, Node will error as soon as it encounters a Typescript ESM import of another Typescript file.
+## The Problem
+
+ESM requires full file extensions for module resolution. TypeScript follows the philosophy of [never transforming existing valid JavaScript constructs](https://github.com/microsoft/TypeScript/issues/40878#issuecomment-702353715), so it expects `.js` extensions in imports even when referencing `.ts` source files.
+
+However, Node's native type handling doesn't resolve `.ts` files when you import with `.js` extensions, causing module resolution errors.
+
+One workaround is to enable `allowImportingTsExtensions` in your `tsconfig.json`, and have your import statements use `.ts`. Unfortunately, this means the compiled output JavaScript files will have `.ts` extensions, which will not work after building (since after building the files will now have `.js` extensions), unless you then also enable `rewriteRelativeImportExtensions` to convert them back to `.js`.
+
+This however requires you to use `tsc` as the compiler for `.ts` files, and only works for TypeScript files in your own project. It does not support resolving `.ts` files imported using absolute paths, path aliases, or from other packages, which is a common use case in monorepos.
 
 ### Example
 
+Given these files:
+
+```typescript
+// add.ts
+export const sum = (a: number, b: number): number => a + b;
+```
+
+```typescript
+// main.ts
+import { sum } from './add.js'; // despite .js extension, TypeScript actually resolves this to './add.ts'
+console.log(sum(2, 3));
+```
+
 ```bash
-cat << EOF > add.ts
-export function add(a: number, b: number): number {
-  return a + b;
-}
-EOF
-
-cat << EOF > main.ts
-import { add } from './add.js';
-
-console.log(add(2,3));
-EOF
-
+# This fails - Node can't find add.js when add.ts exists
 node --experimental-strip-types main.ts
+```
 
-# Results in:
+Results in:
+```
+node:internal/modules/esm/resolve:257
+   throw new ERR_MODULE_NOT_FOUND(
+          ^
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module './add.js' imported from ./main.ts
+```
 
-# node:internal/modules/esm/resolve:257
-#    throw new ERR_MODULE_NOT_FOUND(
-#          ^
-#Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/home/example/add.js' imported from /home/example/main.ts
+Whereas if you use this package, it resolves correctly:
 
-node --experimental-strip-types --import node-resolve-ts/register main.ts
+```bash
+node --experimental-strip-types --import node-ts-resolver/register main.ts
 
 # Results in: 5
 ```
 
 ## Installation
 
-To install this module locally in your project:
+Install the package in your project:
 
 ```bash
-npm install node-resolve-ts
+npm install node-ts-resolver
 ```
-
-Or use your package manager of choice.
 
 ## Usage
 
-Import the registration module before your Typescript code loads. Node will now prefer to load `.ts` files if they exist but fall back to the `.js` otherwise.
+### Basic Usage
+
+Whenever running node, simply add `--import node-ts-resolver/strip` or `--import node-ts-resolver/transform` to your command.
+
+For example that supports type stripping only:
 
 ```bash
-node --experimental-strip-types --import node-resolve-ts/register main.ts
+node --experimental-strip-types --import node-ts-resolver/strip main.ts
 ```
 
-If you would rather load the `.js` file preferentially over the `.ts` when both exist, use this:
+With type transformations (enums, namespaces, etc.):
 
 ```bash
-node --experimental-strip-types --import node-resolve-ts/register-prefer-js main.ts
+node --experimental-transform-types --enable-source-maps --import node-ts-resolver/transform main.ts
+```
+**Note**: When using the transform mode, it's recommended to use the `--enable-source-maps` flag to preserve original source maps for better debugging.
+
+### Node.js Version Considerations
+
+Type stripping is enabled by default since **Node 23.6.0+**, so you can omit the `--experimental-strip-types` flag:
+
+```bash
+node --import node-ts-resolver/strip main.ts
 ```
 
 ### Alternative Usage
 
-If you can't use the above method, an alternative is to import `node-resolve-ts/register` in your entry file and then dynamically import the rest of your code. Since the static import runs first, the resolve hook will be installed and ready by the time the dynamic import run.
+Instead of the import flag, you can also import the resolver in your entry file:
 
 ```typescript
 // entry.ts
-import "node-resolve-ts/register";
+import "node-ts-resolver/strip"; // or "node-ts-resolver/transform"
 import("./main.js");
-
-// main.ts
-import { here } from './a-typescript-file.js';
-the.rest(of: your): code {
-  here();
-}
 ```
 
+Then run with just the required handling flag:
+
 ```bash
-# Then run your entry.ts with regular type stripping
 node --experimental-strip-types entry.ts
 ```
 
-## Monorepo Support / Resolving TypeScript in `node_modules`
+### `.js` takes precedence
 
-Node's built-in `--experimental-strip-types` flag has a limitation: it cannot strip types from files under `node_modules`. This can be problematic in monorepos where packages import TypeScript files from other packages in the workspace.
+Note that native resolution always takes precedence over TypeScript resolution. If a `.js` file exists, it will be resolved instead of a `.ts` file with the same name. This is consistent with how TypeScript resolves modules, ensuring that existing JavaScript files are prioritized.
 
-To work around this limitation, you can manually import [amaro](https://github.com/nodejs/amaro), Node's internal TypeScript loader, enabling support for type-stripping of files inside `node_modules`:
+### Monorepo Support
 
-```bash
-# Install amaro in your project
-npm install amaro
+**node-ts-resolver** enables resolving `.ts` files in `node_modules`, making monorepo support possible.
 
-# Use both flags together - amaro handles the type stripping for all files
-node --experimental-strip-types --import amaro/strip --import node-resolve-ts/register main.ts
-```
+This is achieved by using [amaro](https://github.com/nodejs/amaro) under the hood, which is Node's internal TypeScript loader, and is responsible for type stripping and transforming. This allows the resolver to handle TypeScript files anywhere in the dependency tree, not just in your local project.
 
-This combination allows:
-- `node-resolve-ts` to resolve `.js` imports to `.ts` files anywhere (including in `node_modules`)
-- `amaro` to strip types from TypeScript files, even those in `node_modules`
-- Full monorepo support where packages can directly import TypeScript source from other packages
-
-### Example Monorepo Setup
+#### Example
 
 ```typescript
-// packages/shared/src/utils.ts
+// packages/my-shared-package/src/utils.ts
 export function sharedUtil(): string {
-  return "Hello from shared package";
+  return "Hello from my-shared-package";
 }
+```
 
+```typescript
 // packages/app/src/main.ts
-import { sharedUtil } from "shared/src/utils.js"; // Note: .js extension
+import { sharedUtil } from "my-shared-package/src/utils.js"; // Note: .js extension
 console.log(sharedUtil());
 ```
 
-With the combined approach, this will work seamlessly without needing to build the shared package first.
+With node-ts-resolver, this works seamlessly without needing to build the shared package first:
+
+```bash
+node --experimental-strip-types --import node-ts-resolver/strip packages/app/src/main.ts
+```
+
+## Inspiration
+
+This project started off as a fork from [node-resolve-ts](https://github.com/franklin-ross/node-resolve-ts) by Franklin Ross.
+
+It was created to address the limitations of that package, particularly around monorepo support.
+Additionally, it should be a little bit more performant, as it runs builtin resolution mechanism first, and only falls back to TypeScript resolution if it fails.
