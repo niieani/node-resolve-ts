@@ -1,4 +1,4 @@
-# Node TypeScript Resolver
+# [Node TypeScript Resolver](https://www.npmjs.com/package/node-ts-resolver) [![npm version](https://img.shields.io/npm/v/node-ts-resolver.svg)](https://www.npmjs.com/package/node-ts-resolver)
 
 This package enables Node.js to resolve TypeScript files the same way TypeScript does - allowing `.ts` files to be found when imported with `.js` extensions.
 It works in conjunction with modern Node.js versions that support loading TypeScript files natively:
