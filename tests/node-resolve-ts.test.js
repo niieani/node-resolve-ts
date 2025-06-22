@@ -71,4 +71,18 @@ describe("node-resolve-ts", () => {
       });
     }
   });
+
+  describe("handles non-relative imports with TypeScript resolution", () => {
+    test("resolves package imports with .js to .ts", async () => {
+      const { stdout } = await exec(
+        'node --experimental-strip-types --import amaro/strip --import node-resolve-ts/register test-non-relative.ts',
+        {
+          encoding: "utf8",
+          timeout: 1000,
+          env: { ...process.env, NODE_NO_WARNINGS: "1" },
+        },
+      );
+      assert.match(stdout, /non-relative import: from TypeScript package/);
+    });
+  });
 });

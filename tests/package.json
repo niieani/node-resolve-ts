@@ -7,12 +7,14 @@
     "test": "node --test '*.test.js'"
   },
   "dependencies": {
-    "node-resolve-ts": "file:.."
+    "node-resolve-ts": "file:..",
+    "test-package": "file:./test-package"
   },
   "devDependencies": {
-    "@types/node": "^22.7.5"
+    "@types/node": "^22.7.5",
+    "amaro": "^1.1.0"
   },
   "engines": {
-    "node": "22"
+    "node": ">=22"
   }
 }

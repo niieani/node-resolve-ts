@@ -79,3 +79,37 @@ the.rest(of: your): code {
 # Then run your entry.ts with regular type stripping
 node --experimental-strip-types entry.ts
 ```
+
+## Monorepo Support / Resolving TypeScript in `node_modules`
+
+Node's built-in `--experimental-strip-types` flag has a limitation: it cannot strip types from files under `node_modules`. This can be problematic in monorepos where packages import TypeScript files from other packages in the workspace.
+
+To work around this limitation, you can manually import [amaro](https://github.com/nodejs/amaro), Node's internal TypeScript loader, enabling support for type-stripping of files inside `node_modules`:
+
+```bash
+# Install amaro in your project
+npm install amaro
+
+# Use both flags together - amaro handles the type stripping for all files
+node --experimental-strip-types --import amaro/strip --import node-resolve-ts/register main.ts
+```
+
+This combination allows:
+- `node-resolve-ts` to resolve `.js` imports to `.ts` files anywhere (including in `node_modules`)
+- `amaro` to strip types from TypeScript files, even those in `node_modules`
+- Full monorepo support where packages can directly import TypeScript source from other packages
+
+### Example Monorepo Setup
+
+```typescript
+// packages/shared/src/utils.ts
+export function sharedUtil(): string {
+  return "Hello from shared package";
+}
+
+// packages/app/src/main.ts
+import { sharedUtil } from "shared/src/utils.js"; // Note: .js extension
+console.log(sharedUtil());
+```
+
+With the combined approach, this will work seamlessly without needing to build the shared package first.
